@@ -1,0 +1,13 @@
+Info:
+http://hitmen.c02.at/files/docs/psx/psx.pdf
+https://psx-spx.consoledev.net/memorymap/
+http://problemkaputt.de/psx-spx.htm#cpuspecifications
+https://www.reddit.com/r/EmuDev/comments/fmhtcn/article_the_ps1_gpu_texture_pipeline_and_how_to/
+
+Tests:
+https://github.com/JaCzekanski/ps1-tests
+https://github.com/PeterLemon/PSX
+https://github.com/grumpycoders/pcsx-redux/tree/main/src/mips/tests
+
+Misc info:
+Starting games to Boot: Puzzle Bobble2 doesn't need GTE or Timers. Crash Bandicoot 1 and Spyro are overall good starting points. 
