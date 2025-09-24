@@ -3,14 +3,14 @@ package main
 import "core:fmt"
 import "core:strings"
 import "core:os"
-import sdl "vendor:sdl2"
-import sdlttf "vendor:sdl2/ttf"
-import sdlimg "vendor:sdl2/image"
+import sdl "vendor:sdl3"
+import sdlttf "vendor:sdl3/ttf"
+import sdlimg "vendor:sdl3/image"
 
 SHOW_FULL_VRAM :: true
 ENABLE_TTY :: true
 TTY_FILE :: false
-ENABLE_SIDELOAD :: true
+ENABLE_SIDELOAD :: false
 SIDELOAD_PATH :: "tests/psxtest_cpu.exe"
 DISK_PATH :: ""
 CONTROLLER :: Input_type.digital
@@ -38,35 +38,37 @@ ttyfile: os.Handle
 debug_render: ^sdl.Renderer
 
 main :: proc() {
-    sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMECONTROLLER)
+    if(!sdl.Init(sdl.INIT_VIDEO | sdl.INIT_GAMEPAD)) {
+        panic("Failed to init SDL3!")
+    }
     defer sdl.Quit()
 
-    sdlttf.Init()
+    if(!sdlttf.Init()) {
+        panic("Failed to init SDL3 ttf!")
+    }
     defer sdlttf.Quit()
 
-    sdlimg.Init(sdlimg.INIT_PNG)
-    defer sdlttf.Quit()
-
-    window = sdl.CreateWindow("psx emu", 100, 100, WIN_WIDTH, WIN_HEIGHT,
+    window = sdl.CreateWindow("psx emu", WIN_WIDTH, WIN_HEIGHT,
         sdl.WINDOW_OPENGL)
     assert(window != nil, "Failed to create main window")
     defer sdl.DestroyWindow(window)
+    sdl.SetWindowPosition(window, 100, 100)
 
-    debug_window := sdl.CreateWindow("debug", 800, 100, 600, 600,
-        sdl.WINDOW_OPENGL | sdl.WINDOW_RESIZABLE)
+    debug_window: ^sdl.Window
+    sdl.CreateWindowAndRenderer("debug", 600, 600, sdl.WINDOW_OPENGL, &debug_window, &debug_render)
     assert(debug_window != nil, "Failed to create debug window")
     defer sdl.DestroyWindow(debug_window)
+    defer sdl.DestroyRenderer(debug_render)
+    sdl.SetWindowPosition(debug_window, 800, 100)
 
     icon := sdlimg.Load("PSX_logo.png")
-    defer sdl.FreeSurface(icon)
+    defer sdl.DestroySurface(icon)
     sdl.SetWindowIcon(window, icon)
 
     controller := controller_create()
-    defer sdl.GameControllerClose(controller)
+    defer sdl.CloseGamepad(controller)
 
     render_init(window)
-
-    debug_render = sdl.CreateRenderer(debug_window, -1, sdl.RENDERER_ACCELERATED)
     ticks: u64
 
     //Emu stuff
@@ -155,10 +157,8 @@ handle_events :: proc() {
         #partial switch event.type {
         case sdl.EventType.QUIT:
             exit = true
-        case sdl.EventType.WINDOWEVENT:
-            if event.window.event == sdl.WindowEventID.CLOSE {
-                exit = true
-            }
+        case sdl.EventType.WINDOW_CLOSE_REQUESTED:
+            exit = true
         case:
             input_process(&event)
             handle_dbg_keys(&event)
@@ -168,15 +168,15 @@ handle_events :: proc() {
 
 @(private="file")
 handle_dbg_keys :: proc(event: ^sdl.Event) {
-    if event.type == sdl.EventType.KEYDOWN {
-        #partial switch event.key.keysym.sym {
-        case sdl.Keycode.p:
+    if event.type == sdl.EventType.KEY_DOWN {
+        switch event.key.key {
+        case sdl.K_P:
             pause_emu()
-        case sdl.Keycode.s:
+        case sdl.K_S:
             step = true
-        case sdl.Keycode.ESCAPE:
+        case sdl.K_ESCAPE:
             exit = true
-        case sdl.Keycode.TAB:
+        case sdl.K_TAB:
             debug_switch()
         }
     }
