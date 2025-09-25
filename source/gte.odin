@@ -676,7 +676,7 @@ gte_01 :: proc(command: u32) {
     gte_data.irgb = clamp(gte_data.ir[1] / 0x80, 0, 0x1F) | (clamp(gte_data.ir[2] / 0x80, 0, 0x1F) << 5) |
                     (clamp(gte_data.ir[3] / 0x80, 0, 0x1F) << 10)
 
-    sz3 := gte_data.mac[3] >> ((1 - sf) * 12)
+    sz3 := i32((mac3 >> (sf * 12)) >> ((1 - sf) * 12))
     gte_data.sz[3] = gte_clamp_sz3(sz3)
     div_res := gte_clamp_rtp_div()
 
