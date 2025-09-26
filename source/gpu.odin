@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:math"
 
 Transp_mode :: enum u8 {
     Bd2pFd2,
@@ -157,6 +158,13 @@ vram: [1024 * 512]u16
 @(private="file")
 vram24: [682 * 512]u32
 texture: u32
+
+dither_tbl: [16]i32 = {
+    -4,  0,  -3,  1,
+    2,  -2,  3,  -1,
+    -3,  1,  -4,  0,
+    3,  -1,  2,  -2,
+}
 
 gpu_init :: proc() {
     gpustat.disp_disable = true
@@ -794,6 +802,15 @@ gpu_tri_draw :: proc(v1: Vertex, v2: Vertex, v3: Vertex, c1: u32, opt: Rend_opt)
                     r := (z0 * i32((a.c >> 0) & 0x1F) + z1 * i32((b.c >> 0) & 0x1F) + z2 * i32((c.c >> 0) & 0x1F)) / area
                     g := (z0 * i32((a.c >> 5) & 0x1F) + z1 * i32((b.c >> 5) & 0x1F) + z2 * i32((c.c >> 5) & 0x1F)) / area
                     b := (z0 * i32((a.c >> 10) & 0x1F) + z1 * i32((b.c >> 10) & 0x1F) + z2 * i32((c.c >> 10) & 0x1F)) / area
+
+                    if gpustat.dither {
+                        dy := (p.y - ymin) & 3
+                        dx := (p.x - xmin) & 3
+                        dither := dither_tbl[dx + (dy * 4)]
+                        r = math.clamp(r + dither, 0, 255)
+                        g = math.clamp(g + dither, 0, 255)
+                        b = math.clamp(b + dither, 0, 255)
+                    }
                     color = u16(r | (g << 5) | (b << 10))
                 }
                 if opt.tex == 1 {
@@ -804,9 +821,6 @@ gpu_tri_draw :: proc(v1: Vertex, v2: Vertex, v3: Vertex, c1: u32, opt: Rend_opt)
                         tcx += 1
                         continue
                     }
-                    /*if opt.trans == 1 {
-                        ptrans = (color & 0x8000) != 0
-                    }*/
                     if opt.raw == 1 {
                         color = texel
                     } else {
