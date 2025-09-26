@@ -95,6 +95,7 @@ cop0_exception :: proc(exc: Exception) {
         cop0_lo[cause] |= 0x80000000
     } else {
         cop0_lo[epc] = last_pc
+        cop0_lo[cause] &= 0x7FFFFFFF
     }
 
     if (exc == .intr) && ((cop0_lo[epc] & 0xFE000000) == 0x4A000000) {
@@ -102,7 +103,6 @@ cop0_exception :: proc(exc: Exception) {
     }
 
     mode := cop0_lo[sr] & 0x3F
-
     cop0_lo[sr] &= 0xFFFFFFC0
     cop0_lo[sr] |= (mode << 2) & 0x3F
 
