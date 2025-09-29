@@ -642,6 +642,14 @@ gte_clamp_ir0:: proc(input: i64) ->i16 {
 }
 
 @(private="file")
+gte_set_irgb:: proc() {
+    gte_data.irgb = 
+        clamp(gte_data.ir[1] / 0x80, 0, 0x1F) |
+        (clamp(gte_data.ir[2] / 0x80, 0, 0x1F) << 5) |
+        (clamp(gte_data.ir[3] / 0x80, 0, 0x1F) << 10)
+}
+
+@(private="file")
 gte_01 :: proc(command: u32) {
     gte_set(15, 0) //Shift FIFO
     gte_data.sz[0] = gte_data.sz[1]
@@ -673,8 +681,7 @@ gte_01 :: proc(command: u32) {
         gte_data.ir[3] = gte_clamp_ir(gte_data.mac[3], lm, 0x400000)
     }
 
-    gte_data.irgb = clamp(gte_data.ir[1] / 0x80, 0, 0x1F) | (clamp(gte_data.ir[2] / 0x80, 0, 0x1F) << 5) |
-                    (clamp(gte_data.ir[3] / 0x80, 0, 0x1F) << 10)
+    gte_set_irgb()
 
     sz3 := i32((mac3 >> (sf * 12)) >> ((1 - sf) * 12))
     gte_data.sz[3] = gte_clamp_sz3(sz3)
@@ -711,7 +718,28 @@ gte_06 :: proc(command: u32) {
 
 @(private="file")
 gte_0C :: proc(command: u32) {
-
+    gte_ctrl.flag = 0x0
+    sf := gte_get_sf(command)
+    lm := gte_get_lm(command)
+    ir1 := i64(gte_data.ir[1])
+    ir2 := i64(gte_data.ir[2])
+    ir3 := i64(gte_data.ir[3])
+    d1 := i64(gte_ctrl.rt.m11)
+    d2 := i64(gte_ctrl.rt.m22)
+    d3 := i64(gte_ctrl.rt.m33)
+    mac1 := (ir3 * d2 - ir2 * d3) >> (sf * 12)
+    mac2 := (ir1 * d3 - ir3 * d1) >> (sf * 12)
+    mac3 := (ir2 * d1 - ir1 * d2) >> (sf * 12)
+    gte_check_mac123(mac1, 0x40000000)
+    gte_check_mac123(mac2, 0x20000000)
+    gte_check_mac123(mac3, 0x10000000)
+    gte_data.mac[1] = i32(mac1)
+    gte_data.mac[2] = i32(mac2)
+    gte_data.mac[3] = i32(mac3)
+    gte_data.ir[1] = gte_clamp_ir(gte_data.mac[1], lm, 0x1000000)
+    gte_data.ir[2] = gte_clamp_ir(gte_data.mac[2], lm, 0x800000)
+    gte_data.ir[3] = gte_clamp_ir(gte_data.mac[3], lm, 0x400000)
+    gte_set_irgb()
 }
 
 @(private="file")
