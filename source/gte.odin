@@ -570,7 +570,7 @@ gte_clamp_rtp_div :: proc() ->i64 {
     h := gte_ctrl.h
     sz3 := gte_data.sz[3]
 
-    if h < (sz3 * 2) {
+    if u32(h) < (u32(sz3) * 2) {
         z := intrinsics.count_leading_zeros(sz3)
         n := i64(u64(h) << u64(z))
         d := i64(u64(sz3) << u64(z))
@@ -697,13 +697,16 @@ gte_01 :: proc(command: u32) {
 
 @(private="file")
 gte_06 :: proc(command: u32) {
-    sx0 := i32(gte_data.sxy[0].x)
-    sx1 := i32(gte_data.sxy[1].x)
-    sx2 := i32(gte_data.sxy[2].x)
-    sy0 := i32(gte_data.sxy[0].y)
-    sy1 := i32(gte_data.sxy[1].y)
-    sy2 := i32(gte_data.sxy[2].y)
-    gte_data.mac[0] = sx0 * sy1 + sx1 * sy2 + sx2 * sy0 - sx0 * sy2 - sx1 * sy0 - sx2 * sy1
+    gte_ctrl.flag = 0x0
+    sx0 := i64(gte_data.sxy[0].x)
+    sx1 := i64(gte_data.sxy[1].x)
+    sx2 := i64(gte_data.sxy[2].x)
+    sy0 := i64(gte_data.sxy[0].y)
+    sy1 := i64(gte_data.sxy[1].y)
+    sy2 := i64(gte_data.sxy[2].y)
+    mac0 := sx0 * sy1 + sx1 * sy2 + sx2 * sy0 - sx0 * sy2 - sx1 * sy0 - sx2 * sy1
+    gte_check_mac0(mac0)
+    gte_data.mac[0] = i32(mac0)
 }
 
 @(private="file")
