@@ -244,11 +244,11 @@ gte_get :: proc(reg: u32) -> u32 {
     case 52:
         return u32(gte_ctrl.lcm.m33)
     case 53:
-        return u32(gte_ctrl.fc.x)
+        return u32(gte_ctrl.fc.r)
     case 54:
-        return u32(gte_ctrl.fc.y)
+        return u32(gte_ctrl.fc.g)
     case 55:
-        return u32(gte_ctrl.fc.z)
+        return u32(gte_ctrl.fc.b)
     case 56:
         return u32(gte_ctrl.ofx)
     case 57:
@@ -418,11 +418,11 @@ gte_set :: proc(reg: u32, value: u32) {
     case 52:
         gte_ctrl.lcm.m33 = i16(value & 0xFFFF)
     case 53:
-        gte_ctrl.fc.x = i32(value)
+        gte_ctrl.fc.r = i32(value)
     case 54:
-        gte_ctrl.fc.y = i32(value)
+        gte_ctrl.fc.g = i32(value)
     case 55:
-        gte_ctrl.fc.z = i32(value)
+        gte_ctrl.fc.b = i32(value)
     case 56:    //OFX
         gte_ctrl.ofx = i32(value)
     case 57:    //OFY
@@ -585,25 +585,27 @@ gte_clamp_rtp_div :: proc() ->i64 {
 }
 
 @(private="file")
-gte_check_mac123:: proc(input: i64, index: u32) {
+gte_check_mac123 :: proc(input: i64, index: u32) -> i32 {
     if input > 0x7FFFFFFFFFF {
         gte_ctrl.flag |= (index)
     } else if input < -0x80000000000 {
         gte_ctrl.flag |= (index >> 3)
     }
+    return i32(input)
 }
 
 @(private="file")
-gte_check_mac0:: proc(input: i64) {
+gte_check_mac0 :: proc(input: i64) -> i32 {
     if input > 2147483647 {
         gte_ctrl.flag |= 0x10000
     } else if input < -2147483648 {
         gte_ctrl.flag |= 0x8000
     }
+    return i32(input)
 }
 
 @(private="file")
-gte_clamp_sx:: proc(input: i64) ->i16 {
+gte_clamp_sx :: proc(input: i64) ->i16 {
     retval := input
     if input < -0x400 {
         retval = -0x400
@@ -616,7 +618,7 @@ gte_clamp_sx:: proc(input: i64) ->i16 {
 }
 
 @(private="file")
-gte_clamp_sy:: proc(input: i64) ->i16 {
+gte_clamp_sy :: proc(input: i64) ->i16 {
     retval := input
     if input < -0x400 {
         retval = -0x400
@@ -629,7 +631,7 @@ gte_clamp_sy:: proc(input: i64) ->i16 {
 }
 
 @(private="file")
-gte_clamp_ir0:: proc(input: i64) ->i16 {
+gte_clamp_ir0 :: proc(input: i64) ->i16 {
     retval := input
     if input < 0 {
         retval = 0
@@ -642,11 +644,21 @@ gte_clamp_ir0:: proc(input: i64) ->i16 {
 }
 
 @(private="file")
-gte_set_irgb:: proc() {
+gte_set_irgb :: proc() {
     gte_data.irgb = 
         clamp(gte_data.ir[1] / 0x80, 0, 0x1F) |
         (clamp(gte_data.ir[2] / 0x80, 0, 0x1F) << 5) |
         (clamp(gte_data.ir[3] / 0x80, 0, 0x1F) << 10)
+}
+
+@(private="file")
+gte_push_rgb_fifo :: proc(r: u8, g: u8, b: u8, a: u8) {
+    gte_data.rgb[0] = gte_data.rgb[1]
+    gte_data.rgb[1] = gte_data.rgb[2]
+    gte_data.rgb[2].r = r
+    gte_data.rgb[2].g = g
+    gte_data.rgb[2].b = b
+    gte_data.rgb[2].a = a
 }
 
 @(private="file")
@@ -712,8 +724,7 @@ gte_06 :: proc(command: u32) {
     sy1 := i64(gte_data.sxy[1].y)
     sy2 := i64(gte_data.sxy[2].y)
     mac0 := sx0 * sy1 + sx1 * sy2 + sx2 * sy0 - sx0 * sy2 - sx1 * sy0 - sx2 * sy1
-    gte_check_mac0(mac0)
-    gte_data.mac[0] = i32(mac0)
+    gte_data.mac[0] = gte_check_mac0(mac0)
 }
 
 @(private="file")
@@ -730,12 +741,9 @@ gte_0C :: proc(command: u32) {
     mac1 := (ir3 * d2 - ir2 * d3) >> (sf * 12)
     mac2 := (ir1 * d3 - ir3 * d1) >> (sf * 12)
     mac3 := (ir2 * d1 - ir1 * d2) >> (sf * 12)
-    gte_check_mac123(mac1, 0x40000000)
-    gte_check_mac123(mac2, 0x20000000)
-    gte_check_mac123(mac3, 0x10000000)
-    gte_data.mac[1] = i32(mac1)
-    gte_data.mac[2] = i32(mac2)
-    gte_data.mac[3] = i32(mac3)
+    gte_data.mac[1] = gte_check_mac123(mac1, 0x40000000)
+    gte_data.mac[2] = gte_check_mac123(mac2, 0x20000000)
+    gte_data.mac[3] = gte_check_mac123(mac3, 0x10000000)
     gte_data.ir[1] = gte_clamp_ir(gte_data.mac[1], lm, 0x1000000)
     gte_data.ir[2] = gte_clamp_ir(gte_data.mac[2], lm, 0x800000)
     gte_data.ir[3] = gte_clamp_ir(gte_data.mac[3], lm, 0x400000)
